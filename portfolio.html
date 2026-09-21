@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Portfolio — Samuel DIARD</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #e9e9e7;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        #topbar {
+            height: 56px;
+            background: #f7f7f5;
+            border-bottom: 1px solid #d5d5d2;
+
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            padding: 0 22px;
+        }
+
+        #name {
+            font-size: 14px;
+            letter-spacing: 0.5px;
+            color: #222;
+        }
+
+        #controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        button {
+            border: 1px solid #bdbdb9;
+            background: white;
+            color: #222;
+
+            padding: 7px 13px;
+
+            font-size: 13px;
+            cursor: pointer;
+
+            transition: 0.15s;
+        }
+
+        button:hover {
+            background: #222;
+            color: white;
+        }
+
+        #pageInfo {
+            min-width: 65px;
+            text-align: center;
+            font-size: 13px;
+            color: #555;
+        }
+
+        #viewer {
+            height: calc(100vh - 56px);
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            padding: 18px;
+        }
+
+        #canvasContainer {
+            max-width: 100%;
+            max-height: 100%;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+
+            background: white;
+        }
+
+        #pdfCanvas {
+            display: block;
+            max-width: 100%;
+            max-height: calc(100vh - 92px);
+
+            width: auto;
+            height: auto;
+        }
+
+        @media (max-width: 700px) {
+
+            #topbar {
+                padding: 0 10px;
+            }
+
+            #name {
+                display: none;
+            }
+
+            #viewer {
+                padding: 8px;
+            }
+
+            button {
+                padding: 6px 9px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="topbar">
+
+    <div id="name">
+        Samuel DIARD — Portfolio
+    </div>
+
+    <div id="controls">
+
+        <button onclick="previousPage()">←</button>
+
+        <div id="pageInfo">
+            1 / 25
+        </div>
+
+        <button onclick="nextPage()">→</button>
+
+        <button onclick="toggleFullscreen()">
+            Plein écran
+        </button>
+
+    </div>
+
+</div>
+
+<div id="viewer">
+
+    <div id="canvasContainer">
+        <canvas id="pdfCanvas"></canvas>
+    </div>
+
+</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<script>
+
+    const url = 'portfolio-complet.pdf.pdf';
+
+    let pdfDoc = null;
+    let pageNum = 1;
+    let rendering = false;
+
+    const canvas = document.getElementById('pdfCanvas');
+    const ctx = canvas.getContext('2d');
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+
+    pdfjsLib.getDocument(url).promise.then(function(pdf) {
+
+        pdfDoc = pdf;
+
+        document.getElementById('pageInfo').textContent =
+            pageNum + ' / ' + pdfDoc.numPages;
+
+        renderPage(pageNum);
+
+    }).catch(function(error) {
+
+        document.getElementById('pageInfo').textContent =
+            'Erreur de chargement';
+
+        console.error(error);
+
+    });
+
+
+    function renderPage(num) {
+
+        rendering = true;
+
+        pdfDoc.getPage(num).then(function(page) {
+
+            const container = document.getElementById('viewer');
+
+            const availableWidth = container.clientWidth - 36;
+            const availableHeight = container.clientHeight - 36;
+
+            const viewport = page.getViewport({ scale: 1 });
+
+            const scale = Math.min(
+                availableWidth / viewport.width,
+                availableHeight / viewport.height
+            );
+
+            const scaledViewport =
+                page.getViewport({ scale: scale });
+
+            canvas.width = scaledViewport.width;
+            canvas.height = scaledViewport.height;
+
+            const renderContext = {
+                canvasContext: ctx,
+                viewport: scaledViewport
+            };
+
+            page.render(renderContext).promise.then(function() {
+
+                rendering = false;
+
+                document.getElementById('pageInfo').textContent =
+                    num + ' / ' + pdfDoc.numPages;
+
+            });
+
+        });
+    }
+
+
+    function previousPage() {
+
+        if (pageNum <= 1 || rendering) {
+            return;
+        }
+
+        pageNum--;
+
+        renderPage(pageNum);
+    }
+
+
+    function nextPage() {
+
+        if (pageNum >= pdfDoc.numPages || rendering) {
+            return;
+        }
+
+        pageNum++;
+
+        renderPage(pageNum);
+    }
+
+
+    function toggleFullscreen() {
+
+        if (!document.fullscreenElement) {
+
+            document.documentElement.requestFullscreen();
+
+        } else {
+
+            document.exitFullscreen();
+
+        }
+
+    }
+
+
+    document.addEventListener('keydown', function(event) {
+
+        if (event.key === 'ArrowLeft') {
+            previousPage();
+        }
+
+        if (event.key === 'ArrowRight') {
+            nextPage();
+        }
+
+        if (event.key === 'Escape') {
+
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            }
+
+        }
+
+    });
+
+
+    window.addEventListener('resize', function() {
+
+        if (pdfDoc && !rendering) {
+            renderPage(pageNum);
+        }
+
+    });
+
+</script>
+
+</body>
+</html>
